@@ -845,8 +845,10 @@ func handleProviderCallback(w http.ResponseWriter, r *http.Request) {
 	if code != "" {
 		userId, err := db.FetchDiscordIdByUsername(user)
 		if err != nil {
-
+			log.Println("error fetching Discord ID by username")
+			return
 		}
+		log.Println("user", userId)
 		defer http.Redirect(w, r, "http://localhost:8000", http.StatusSeeOther)
 	}
 
@@ -855,11 +857,12 @@ func handleProviderCallback(w http.ResponseWriter, r *http.Request) {
 		log.Println("callback err", w, r)
 		return
 	} else {
-		err := db.AddDiscordAuthByUsername(gothUser.UserID, user)
-		if err != nil {
-			log.Println("error adding Discord Auth to database")
-			return
-		}
+		log.Println("gothUser:", gothUser)
+		// err := db.AddDiscordAuthByUsername(gothUser.UserID, user)
+		// if err != nil {
+		// 	log.Println("error adding Discord Auth to database")
+		// 	return
+		// }
 	}
 	log.Println("user", gothUser.UserID)
 }

@@ -20,7 +20,6 @@ require (
 
 require (
 	github.com/gorilla/sessions v1.2.2
-	github.com/joho/godotenv v1.5.1
 	github.com/markbates/goth v1.79.0
 	golang.org/x/sys v0.19.0 // indirect
 )
