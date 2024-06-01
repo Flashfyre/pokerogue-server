@@ -19,14 +19,15 @@ package api
 
 import (
 	"database/sql"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
+	"os"
 	"strconv"
+	"strings"
 
-	"github.com/markbates/goth/gothic"
 	"github.com/pagefaultgames/rogueserver/api/account"
 	"github.com/pagefaultgames/rogueserver/api/daily"
 	"github.com/pagefaultgames/rogueserver/api/savedata"
@@ -832,60 +833,68 @@ func handleDailyRankingPageCount(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write([]byte(strconv.Itoa(count)))
 }
 
-func handleProviderAuth(w http.ResponseWriter, r *http.Request) {
-	defer http.Redirect(w, r, "https://discord.com/oauth2/authorize?client_id=1246478260985139362&response_type=code&redirect_uri=http%3A%2F%2Flocalhost%3A8001%2Fauth%2Fdiscord%2Fcallback&scope=identify", http.StatusSeeOther)
-}
-
 // redirect link after authorizing application link
 func handleProviderCallback(w http.ResponseWriter, r *http.Request) {
-	gothic.GetProviderName = func(r *http.Request) (string, error) { return r.PathValue("provider"), nil }
 
-	// called again with code after authorization
 	code := r.URL.Query().Get("code")
-	if code != "" {
-		userId, err := db.FetchDiscordIdByUsername(user)
+	state := r.URL.Query().Get("state")
+	gameUrl := os.Getenv("GAME_URL")
+	if code == "" {
+		defer http.Redirect(w, r, gameUrl, http.StatusSeeOther)
+		return
+	}
+
+	var userName string
+	user, err := account.RetrieveDiscordId(code)
+	if err != nil {
+		defer http.Redirect(w, r, gameUrl, http.StatusSeeOther)
+		return
+	}
+
+	if state != "" {
+		// replace whitespace for +
+		state = strings.Replace(state, " ", "+", -1)
+		stateByte, err := base64.StdEncoding.DecodeString(state)
 		if err != nil {
-			log.Println("error fetching Discord ID by username")
+			defer http.Redirect(w, r, gameUrl, http.StatusSeeOther)
 			return
 		}
-		log.Println("user", userId)
-		defer http.Redirect(w, r, "http://localhost:8000", http.StatusSeeOther)
-	}
-
-	gothUser, err := gothic.CompleteUserAuth(w, r)
-	if err != nil {
-		log.Println("callback err", w, r)
-		return
+		userName, err = db.FetchUsernameBySessionToken(stateByte)
+		if err != nil {
+			defer http.Redirect(w, r, gameUrl, http.StatusSeeOther)
+			return
+		}
+		err = db.AddDiscordAuthByUsername(user, userName)
+		if err != nil {
+			defer http.Redirect(w, r, gameUrl, http.StatusSeeOther)
+			return
+		}
 	} else {
-		log.Println("gothUser:", gothUser)
-		// err := db.AddDiscordAuthByUsername(gothUser.UserID, user)
-		// if err != nil {
-		// 	log.Println("error adding Discord Auth to database")
-		// 	return
-		// }
-	}
-	log.Println("user", gothUser.UserID)
-}
+		userName, err = db.FetchUsernameByDiscordId(user)
+		if err != nil {
+			defer http.Redirect(w, r, gameUrl, http.StatusSeeOther)
+			return
+		}
 
-func handleProviderLink(w http.ResponseWriter, r *http.Request) {
-	gothic.GetProviderName = func(r *http.Request) (string, error) { return r.PathValue("provider"), nil }
-	username := r.URL.Query().Get("username")
-	// username recorded prior to authorization
-	if username != "" {
-		user = username
+		cookieToken, err := account.GenerateTokenForUsername(userName)
+		if err != nil {
+			defer http.Redirect(w, r, gameUrl, http.StatusSeeOther)
+			return
+		}
+		cookie := http.Cookie{Name: "pokerogue_sessionId", Value: string(cookieToken), Path: "/"}
+		http.SetCookie(w, &cookie)
 	}
-	// try to get the user without re-authenticating
-	if gothUser, err := gothic.CompleteUserAuth(w, r); err == nil {
-		log.Print("gothUser:", gothUser.Name)
-	} else {
-		gothic.BeginAuthHandler(w, r)
-	}
+	defer http.Redirect(w, r, gameUrl, http.StatusSeeOther)
 
 }
 
 func handleProviderLogout(w http.ResponseWriter, r *http.Request) {
-	gothic.GetProviderName = func(r *http.Request) (string, error) { return r.PathValue("provider"), nil }
-	gothic.Logout(w, r)
-	w.Header().Set("Location", "/")
-	w.WriteHeader(http.StatusTemporaryRedirect)
+	uuid, err := uuidFromRequest(r)
+	if err != nil {
+		httpError(w, r, err, http.StatusBadRequest)
+		return
+	}
+
+	db.RemoveDiscordAuthByUUID(uuid)
+	w.WriteHeader(http.StatusOK)
 }

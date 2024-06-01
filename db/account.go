@@ -50,7 +50,7 @@ func AddAccountSession(username string, token []byte) error {
 	return nil
 }
 
-func AddDiscordAuthByUsername(discordId []byte, username string) error {
+func AddDiscordAuthByUsername(discordId string, username string) error {
 	_, err := handle.Exec("UPDATE accounts SET discordId = ? WHERE username = ?", discordId, username)
 	if err != nil {
 		return err
@@ -59,14 +59,24 @@ func AddDiscordAuthByUsername(discordId []byte, username string) error {
 	return nil
 }
 
-func FetchDiscordIdByUsername(username string) ([]byte, error) {
-	var discordId []byte
-	err := handle.QueryRow("SELECT discordId FROM accounts WHERE username = ?", username).Scan(&discordId)
+func FetchUsernameByDiscordId(discordId string) (string, error) {
+	var username string
+	err := handle.QueryRow("SELECT username FROM accounts WHERE discordId = ?", discordId).Scan(&username)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
-	return discordId, nil
+	return username, nil
+}
+
+func FetchUsernameBySessionToken(token []byte) (string, error) {
+	var username string
+	err := handle.QueryRow("SELECT a.username FROM accounts a JOIN sessions s ON a.uuid = s.uuid WHERE s.token = ?", token).Scan(&username)
+	if err != nil {
+		return "", err
+	}
+
+	return username, nil
 }
 
 func UpdateAccountPassword(uuid, key, salt []byte) error {
@@ -278,6 +288,15 @@ func FetchUUIDFromToken(token []byte) ([]byte, error) {
 
 func RemoveSessionFromToken(token []byte) error {
 	_, err := handle.Exec("DELETE FROM sessions WHERE token = ?", token)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func RemoveDiscordAuthByUUID(uuid []byte) error {
+	_, err := handle.Exec("UPDATE accounts SET discordId = NULL WHERE uuid = ?", uuid)
 	if err != nil {
 		return err
 	}

@@ -44,11 +44,19 @@ func main() {
 	dbaddr := flag.String("dbaddr", "localhost", "database address")
 	dbname := flag.String("dbname", "pokeroguedb", "database name")
 
-	discordclientid := flag.String("discordclientid", "1246478260985139362", "Discord Oauth2 Client ID")
-	discordsecretid := flag.String("discordsecretid", "GCDyJ3Xk_r46OrbYLSAXuUTxyyrpiaGK", "Discord Oauth2 Client ID")
-	discordcallbackuri := flag.String("discordcallbackuri", "http://localhost:8001/auth/discord/callback", "Discord Oauth2 Client ID")
+	discordclientid := flag.String("discordclientid", "1111111111111111111", "Discord Oauth2 Client ID")
+	discordsecretid := flag.String("discordsecretid", "1111111111111111", "Discord Oauth2 Client ID")
+	discordcallbackuri := flag.String("discordcallbackuri", "http://localhost:8001", "Discord Oauth2 Client ID")
+
+	gameurl := flag.String("gameurl", "https://pokerogue.net", "URL for game server")
 
 	flag.Parse()
+
+	// set discord client id as env variable
+	os.Setenv("DISCORD_CLIENT_ID", *discordclientid)
+	os.Setenv("DISCORD_CLIENT_SECRET", *discordsecretid)
+	os.Setenv("DISCORD_CALLBACK_URI", *discordcallbackuri+"/auth/discord/callback")
+	os.Setenv("GAME_URL", *gameurl)
 
 	// register gob types
 	gob.Register([]interface{}{})
