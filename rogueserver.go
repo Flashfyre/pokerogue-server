@@ -44,8 +44,8 @@ func main() {
 	dbaddr := flag.String("dbaddr", "localhost", "database address")
 	dbname := flag.String("dbname", "pokeroguedb", "database name")
 
-	discordclientid := flag.String("discordclientid", "1225433195617718315", "Discord Oauth2 Client ID")
-	discordsecretid := flag.String("discordsecretid", "LxtTMCEeRagl7Rve0goZzUnv4mnT5Xzm", "Discord Oauth2 Client ID")
+	discordclientid := flag.String("discordclientid", "1246478260985139362", "Discord Oauth2 Client ID")
+	discordsecretid := flag.String("discordsecretid", "GCDyJ3Xk_r46OrbYLSAXuUTxyyrpiaGK", "Discord Oauth2 Client ID")
 	discordcallbackuri := flag.String("discordcallbackuri", "http://localhost:8001/auth/discord/callback", "Discord Oauth2 Client ID")
 
 	flag.Parse()
