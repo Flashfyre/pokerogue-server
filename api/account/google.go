@@ -23,9 +23,11 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+
+	"github.com/golang-jwt/jwt/v5"
 )
 
-func HandleDiscordCallback(w http.ResponseWriter, r *http.Request) (string, error) {
+func HandleGoogleCallback(w http.ResponseWriter, r *http.Request) (string, error) {
 	code := r.URL.Query().Get("code")
 	gameUrl := os.Getenv("GAME_URL")
 	if code == "" {
@@ -33,73 +35,63 @@ func HandleDiscordCallback(w http.ResponseWriter, r *http.Request) (string, erro
 		return "", errors.New("code is empty")
 	}
 
-	discordId, err := RetrieveDiscordId(code)
+	googleId, err := RetrieveGoogleId(code)
 	if err != nil {
 		defer http.Redirect(w, r, gameUrl, http.StatusSeeOther)
 		return "", err
 	}
 
-	return discordId, nil
+	return googleId, err
 }
 
-func RetrieveDiscordId(code string) (string, error) {
-	token, err := http.PostForm("https://discord.com/api/oauth2/token", url.Values{
-		"client_id":     {os.Getenv("DISCORD_CLIENT_ID")},
-		"client_secret": {os.Getenv("DISCORD_CLIENT_SECRET")},
-		"grant_type":    {"authorization_code"},
+func RetrieveGoogleId(code string) (string, error) {
+	token, err := http.PostForm("httpS://oauth2.googleapis.com/token", url.Values{
+		"client_id":     {os.Getenv("GOOGLE_CLIENT_ID")},
+		"client_secret": {os.Getenv("GOOGLE_CLIENT_SECRET")},
 		"code":          {code},
-		"redirect_uri":  {os.Getenv("DISCORD_CALLBACK_URI")},
-		"scope":         {"identify"},
+		"grant_type":    {"authorization_code"},
+		"redirect_uri":  {os.Getenv("GOOGLE_CALLBACK_URI")},
 	})
 
 	if err != nil {
 		return "", err
 	}
-
-	// extract access_token from token
+	defer token.Body.Close()
 	type TokenResponse struct {
 		AccessToken  string `json:"access_token"`
 		TokenType    string `json:"token_type"`
 		ExpiresIn    int    `json:"expires_in"`
-		Scope        string `json:"scope"`
+		IdToken      string `json:"id_token"`
 		RefreshToken string `json:"refresh_token"`
+		Scope        string `json:"scope"`
 	}
-
 	var tokenResponse TokenResponse
 	err = json.NewDecoder(token.Body).Decode(&tokenResponse)
 	if err != nil {
 		return "", err
 	}
 
-	access_token := tokenResponse.AccessToken
-	if access_token == "" {
-		err = errors.New("access token is empty")
-		return "", err
-	}
-
-	client := &http.Client{}
-	req, err := http.NewRequest("GET", "https://discord.com/api/users/@me", nil)
+	userId, err := parseJWTWithoutValidation(tokenResponse.IdToken)
 	if err != nil {
 		return "", err
 	}
 
-	req.Header.Set("Authorization", "Bearer "+access_token)
-	resp, err := client.Do(req)
+	return userId, nil
+}
+
+func parseJWTWithoutValidation(idToken string) (string, error) {
+	parser := jwt.NewParser()
+
+	// Use ParseUnverified to parse the token without validation
+	parsedJwt, _, err := parser.ParseUnverified(idToken, jwt.MapClaims{})
 	if err != nil {
 		return "", err
 	}
 
-	defer resp.Body.Close()
-
-	type User struct {
-		Id string `json:"id"`
+	claims, ok := parsedJwt.Claims.(jwt.MapClaims)
+	if !ok {
+		return "", errors.New("invalid token claims")
 	}
 
-	var user User
-	err = json.NewDecoder(resp.Body).Decode(&user)
-	if err != nil {
-		return "", err
-	}
-
-	return user.Id, nil
+	return claims.GetSubject()
 }

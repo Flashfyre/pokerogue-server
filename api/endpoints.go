@@ -835,57 +835,67 @@ func handleDailyRankingPageCount(w http.ResponseWriter, r *http.Request) {
 
 // redirect link after authorizing application link
 func handleProviderCallback(w http.ResponseWriter, r *http.Request) {
-
-	code := r.URL.Query().Get("code")
+	provider := r.PathValue("provider")
 	state := r.URL.Query().Get("state")
 	gameUrl := os.Getenv("GAME_URL")
-	if code == "" {
-		defer http.Redirect(w, r, gameUrl, http.StatusSeeOther)
+	var externalAuthId string
+	var err error
+	switch provider {
+	case "discord":
+		externalAuthId, err = account.HandleDiscordCallback(w, r)
+	case "google":
+		externalAuthId, err = account.HandleGoogleCallback(w, r)
+	default:
+		http.Error(w, "invalid provider", http.StatusBadRequest)
 		return
 	}
 
-	var userName string
-	user, err := account.RetrieveDiscordId(code)
 	if err != nil {
-		defer http.Redirect(w, r, gameUrl, http.StatusSeeOther)
+		httpError(w, r, err, http.StatusInternalServerError)
 		return
 	}
 
 	if state != "" {
-		// replace whitespace for +
 		state = strings.Replace(state, " ", "+", -1)
 		stateByte, err := base64.StdEncoding.DecodeString(state)
 		if err != nil {
 			defer http.Redirect(w, r, gameUrl, http.StatusSeeOther)
 			return
 		}
-		userName, err = db.FetchUsernameBySessionToken(stateByte)
+
+		userName, err := db.FetchUsernameBySessionToken(stateByte)
 		if err != nil {
 			defer http.Redirect(w, r, gameUrl, http.StatusSeeOther)
 			return
 		}
-		err = db.AddDiscordAuthByUsername(user, userName)
+
+		err = db.AddExternalAuthByUsername(externalAuthId, userName)
 		if err != nil {
 			defer http.Redirect(w, r, gameUrl, http.StatusSeeOther)
 			return
 		}
+
 	} else {
-		userName, err = db.FetchUsernameByDiscordId(user)
+		userName, err := db.FetchUsernameByExternalAuth(externalAuthId)
 		if err != nil {
 			defer http.Redirect(w, r, gameUrl, http.StatusSeeOther)
 			return
 		}
 
-		cookieToken, err := account.GenerateTokenForUsername(userName)
+		sessionToken, err := account.GenerateTokenForUsername(userName)
 		if err != nil {
 			defer http.Redirect(w, r, gameUrl, http.StatusSeeOther)
 			return
 		}
-		cookie := http.Cookie{Name: "pokerogue_sessionId", Value: string(cookieToken), Path: "/"}
-		http.SetCookie(w, &cookie)
+
+		http.SetCookie(w, &http.Cookie{
+			Name:  "pokerogue_sessionId",
+			Value: sessionToken,
+			Path:  "/",
+		})
 	}
-	defer http.Redirect(w, r, gameUrl, http.StatusSeeOther)
 
+	defer http.Redirect(w, r, gameUrl, http.StatusSeeOther)
 }
 
 func handleProviderLogout(w http.ResponseWriter, r *http.Request) {

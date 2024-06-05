@@ -50,8 +50,8 @@ func AddAccountSession(username string, token []byte) error {
 	return nil
 }
 
-func AddDiscordAuthByUsername(discordId string, username string) error {
-	_, err := handle.Exec("UPDATE accounts SET discordId = ? WHERE username = ?", discordId, username)
+func AddExternalAuthByUsername(externalAuth string, username string) error {
+	_, err := handle.Exec("INSERT INTO accountIntegrations (uuid, externalAccountId) SELECT a.uuid, ? FROM accounts a WHERE a.username = ?", externalAuth, username)
 	if err != nil {
 		return err
 	}
@@ -59,9 +59,9 @@ func AddDiscordAuthByUsername(discordId string, username string) error {
 	return nil
 }
 
-func FetchUsernameByDiscordId(discordId string) (string, error) {
+func FetchUsernameByExternalAuth(externalAuth string) (string, error) {
 	var username string
-	err := handle.QueryRow("SELECT username FROM accounts WHERE discordId = ?", discordId).Scan(&username)
+	err := handle.QueryRow("SELECT a.username FROM accounts a JOIN accountIntegrations ai ON a.uuid = ai.uuid WHERE ai.externalAccountId = ?", externalAuth).Scan(&username)
 	if err != nil {
 		return "", err
 	}
