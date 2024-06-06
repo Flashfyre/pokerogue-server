@@ -40,11 +40,6 @@ import (
 	Handler functions are responsible for checking the validity of this data and returning a result or error.
 	Handlers should not return serialized JSON, instead return the struct itself.
 */
-
-var (
-	user = string("")
-)
-
 // account
 
 func handleAccountInfo(w http.ResponseWriter, r *http.Request) {
