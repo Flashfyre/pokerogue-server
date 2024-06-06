@@ -96,8 +96,7 @@ func setupDb(tx *sql.Tx) error {
 		// ----------------------------------
 		// MIGRATION 002
 
-		`CREATE TABLE IF NOT EXISTS accountIntegrations (uuid BINARY(16) NOT NULL, externalAccountId VARCHAR(32) NOT NULL, PRIMARY KEY (uuid, externalAccountId), FOREIGN KEY (uuid) REFERENCES accounts (uuid) ON DELETE CASCADE ON UPDATE CASCADE)`,
-		`CREATE INDEX IF NOT EXISTS accountIntegrationsByExternalAccountId ON accountIntegrations (externalAccountId)`,
+		`CREATE TABLE IF NOT EXISTS accountIntegrations (uuid BINARY(16) NOT NULL, externalAccountId VARCHAR(32) PRIMARY KEY NOT NULL, FOREIGN KEY (uuid) REFERENCES accounts (uuid) ON DELETE CASCADE ON UPDATE CASCADE)`,
 		`CREATE INDEX IF NOT EXISTS accountIntegrationsByUuid ON accountIntegrations (uuid)`,
 	}
 
