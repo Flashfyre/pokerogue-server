@@ -54,13 +54,13 @@ func handleAccountInfo(w http.ResponseWriter, r *http.Request) {
 		httpError(w, r, err, http.StatusInternalServerError)
 		return
 	}
-
-	response, err := account.Info(username, uuid)
+	discordId, _ := db.FetchDiscordIdByUsername(username)
+	googleId, _ := db.FetchGoogleIdByUsername(username)
+	response, err := account.Info(username, discordId, googleId, uuid)
 	if err != nil {
 		httpError(w, r, err, http.StatusInternalServerError)
 		return
 	}
-
 	writeJSON(w, r, response)
 }
 
@@ -864,14 +864,26 @@ func handleProviderCallback(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		err = db.AddExternalAuthByUsername(externalAuthId, userName)
+		switch provider {
+		case "discord":
+			err = db.AddDiscordIdByUsername(externalAuthId, userName)
+		case "google":
+			err = db.AddGoogleIdByUsername(externalAuthId, userName)
+		}
+
 		if err != nil {
 			defer http.Redirect(w, r, gameUrl, http.StatusSeeOther)
 			return
 		}
 
 	} else {
-		userName, err := db.FetchUsernameByExternalAuth(externalAuthId)
+		var userName string
+		switch provider {
+		case "discord":
+			userName, err = db.FetchUsernameByDiscordId(externalAuthId)
+		case "google":
+			userName, err = db.FetchUsernameByGoogleId(externalAuthId)
+		}
 		if err != nil {
 			defer http.Redirect(w, r, gameUrl, http.StatusSeeOther)
 			return
@@ -900,6 +912,18 @@ func handleProviderLogout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	db.RemoveDiscordAuthByUUID(uuid)
+	switch r.PathValue("provider") {
+	case "discord":
+		err = db.RemoveDiscordIdByUUID(uuid)
+	case "google":
+		err = db.RemoveGoogleIdByUUID(uuid)
+	default:
+		http.Error(w, "invalid provider", http.StatusBadRequest)
+		return
+	}
+	if err != nil {
+		httpError(w, r, err, http.StatusInternalServerError)
+		return
+	}
 	w.WriteHeader(http.StatusOK)
 }

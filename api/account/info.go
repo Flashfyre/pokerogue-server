@@ -24,12 +24,14 @@ import (
 
 type InfoResponse struct {
 	Username        string `json:"username"`
+	DiscordId       string `json:"discordId"`
+	GoogleId        string `json:"googleId"`
 	LastSessionSlot int    `json:"lastSessionSlot"`
 }
 
 // /account/info - get account info
-func Info(username string, uuid []byte) (InfoResponse, error) {
-	response := InfoResponse{Username: username, LastSessionSlot: -1}
+func Info(username string, discordId string, googleId string, uuid []byte) (InfoResponse, error) {
+	response := InfoResponse{Username: username, LastSessionSlot: -1, DiscordId: discordId, GoogleId: googleId}
 
 	highest := -1
 	for i := 0; i < defs.SessionSlotCount; i++ {
