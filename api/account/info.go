@@ -31,7 +31,12 @@ type InfoResponse struct {
 
 // /account/info - get account info
 func Info(username string, discordId string, googleId string, uuid []byte) (InfoResponse, error) {
-	response := InfoResponse{Username: username, LastSessionSlot: -1, DiscordId: discordId, GoogleId: googleId}
+	response := InfoResponse{
+		Username:        username,
+		LastSessionSlot: -1,
+		DiscordId:       discordId,
+		GoogleId:        googleId,
+	}
 
 	highest := -1
 	for i := 0; i < defs.SessionSlotCount; i++ {

@@ -41,11 +41,11 @@ func HandleGoogleCallback(w http.ResponseWriter, r *http.Request) (string, error
 		return "", err
 	}
 
-	return googleId, err
+	return googleId, nil
 }
 
 func RetrieveGoogleId(code string) (string, error) {
-	token, err := http.PostForm("httpS://oauth2.googleapis.com/token", url.Values{
+	token, err := http.PostForm("https://oauth2.googleapis.com/token", url.Values{
 		"client_id":     {os.Getenv("GOOGLE_CLIENT_ID")},
 		"client_secret": {os.Getenv("GOOGLE_CLIENT_SECRET")},
 		"code":          {code},

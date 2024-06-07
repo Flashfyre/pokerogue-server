@@ -54,8 +54,20 @@ func handleAccountInfo(w http.ResponseWriter, r *http.Request) {
 		httpError(w, r, err, http.StatusInternalServerError)
 		return
 	}
-	discordId, _ := db.FetchDiscordIdByUsername(username)
-	googleId, _ := db.FetchGoogleIdByUsername(username)
+	discordId, err := db.FetchDiscordIdByUsername(username)
+	if err != nil {
+		if !errors.Is(err, sql.ErrNoRows) {
+			httpError(w, r, err, http.StatusInternalServerError)
+			return
+		}
+	}
+	googleId, err := db.FetchGoogleIdByUsername(username)
+	if err != nil {
+		if !errors.Is(err, sql.ErrNoRows) {
+			httpError(w, r, err, http.StatusInternalServerError)
+			return
+		}
+	}
 	response, err := account.Info(username, discordId, googleId, uuid)
 	if err != nil {
 		httpError(w, r, err, http.StatusInternalServerError)
@@ -854,13 +866,13 @@ func handleProviderCallback(w http.ResponseWriter, r *http.Request) {
 		state = strings.Replace(state, " ", "+", -1)
 		stateByte, err := base64.StdEncoding.DecodeString(state)
 		if err != nil {
-			defer http.Redirect(w, r, gameUrl, http.StatusSeeOther)
+			http.Redirect(w, r, gameUrl, http.StatusSeeOther)
 			return
 		}
 
 		userName, err := db.FetchUsernameBySessionToken(stateByte)
 		if err != nil {
-			defer http.Redirect(w, r, gameUrl, http.StatusSeeOther)
+			http.Redirect(w, r, gameUrl, http.StatusSeeOther)
 			return
 		}
 
@@ -872,7 +884,7 @@ func handleProviderCallback(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if err != nil {
-			defer http.Redirect(w, r, gameUrl, http.StatusSeeOther)
+			http.Redirect(w, r, gameUrl, http.StatusSeeOther)
 			return
 		}
 
@@ -885,13 +897,13 @@ func handleProviderCallback(w http.ResponseWriter, r *http.Request) {
 			userName, err = db.FetchUsernameByGoogleId(externalAuthId)
 		}
 		if err != nil {
-			defer http.Redirect(w, r, gameUrl, http.StatusSeeOther)
+			http.Redirect(w, r, gameUrl, http.StatusSeeOther)
 			return
 		}
 
 		sessionToken, err := account.GenerateTokenForUsername(userName)
 		if err != nil {
-			defer http.Redirect(w, r, gameUrl, http.StatusSeeOther)
+			http.Redirect(w, r, gameUrl, http.StatusSeeOther)
 			return
 		}
 

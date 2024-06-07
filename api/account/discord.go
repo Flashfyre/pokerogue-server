@@ -73,8 +73,7 @@ func RetrieveDiscordId(code string) (string, error) {
 
 	access_token := tokenResponse.AccessToken
 	if access_token == "" {
-		err = errors.New("access token is empty")
-		return "", err
+		return "", errors.New("access token is empty")
 	}
 
 	client := &http.Client{}
