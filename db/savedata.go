@@ -18,10 +18,15 @@
 package db
 
 import (
-	"bytes"
-	"encoding/gob"
+	"encoding/json"
 
+	"github.com/klauspost/compress/zstd"
 	"github.com/pagefaultgames/rogueserver/defs"
+)
+
+var (
+	zstdEncoder, _ = zstd.NewWriter(nil)
+	zstdDecoder, _ = zstd.NewReader(nil)
 )
 
 func TryAddSeedCompletion(uuid []byte, seed string, mode int) (bool, error) {
@@ -60,7 +65,12 @@ func ReadSystemSaveData(uuid []byte) (defs.SystemSaveData, error) {
 		return system, err
 	}
 
-	err = gob.NewDecoder(bytes.NewReader(data)).Decode(&system)
+	decompressed, err := zstdDecoder.DecodeAll(data, nil)
+	if err != nil {
+		return system, err
+	}
+
+	err = json.Unmarshal(decompressed, &system)
 	if err != nil {
 		return system, err
 	}
@@ -69,13 +79,14 @@ func ReadSystemSaveData(uuid []byte) (defs.SystemSaveData, error) {
 }
 
 func StoreSystemSaveData(uuid []byte, data defs.SystemSaveData) error {
-	var buf bytes.Buffer
-	err := gob.NewEncoder(&buf).Encode(data)
+	encoded, err := json.Marshal(data)
 	if err != nil {
 		return err
 	}
 
-	_, err = handle.Exec("INSERT INTO systemSaveData (uuid, data, timestamp) VALUES (?, ?, UTC_TIMESTAMP()) ON DUPLICATE KEY UPDATE data = ?, timestamp = UTC_TIMESTAMP()", uuid, buf.Bytes(), buf.Bytes())
+	compressed := zstdEncoder.EncodeAll(encoded, nil)
+	
+	_, err = handle.Exec("INSERT INTO systemSaveData (uuid, data, timestamp) VALUES (?, ?, UTC_TIMESTAMP()) ON DUPLICATE KEY UPDATE data = ?, timestamp = UTC_TIMESTAMP()", uuid, compressed, compressed)
 	if err != nil {
 		return err
 	}
@@ -101,7 +112,12 @@ func ReadSessionSaveData(uuid []byte, slot int) (defs.SessionSaveData, error) {
 		return session, err
 	}
 
-	err = gob.NewDecoder(bytes.NewReader(data)).Decode(&session)
+	decompressed, err := zstdDecoder.DecodeAll(data, nil)
+	if err != nil {
+		return session, err
+	}
+
+	err = json.Unmarshal(decompressed, &session)
 	if err != nil {
 		return session, err
 	}
@@ -120,13 +136,14 @@ func GetLatestSessionSaveDataSlot(uuid []byte) (int, error) {
 }
 
 func StoreSessionSaveData(uuid []byte, data defs.SessionSaveData, slot int) error {
-	var buf bytes.Buffer
-	err := gob.NewEncoder(&buf).Encode(data)
+	encoded, err := json.Marshal(data)
 	if err != nil {
 		return err
 	}
 
-	_, err = handle.Exec("INSERT INTO sessionSaveData (uuid, slot, data, timestamp) VALUES (?, ?, ?, UTC_TIMESTAMP()) ON DUPLICATE KEY UPDATE data = ?, timestamp = UTC_TIMESTAMP()", uuid, slot, buf.Bytes(), buf.Bytes())
+	compressed := zstdEncoder.EncodeAll(encoded, nil)
+
+	_, err = handle.Exec("INSERT INTO sessionSaveData (uuid, slot, data, timestamp) VALUES (?, ?, ?, UTC_TIMESTAMP()) ON DUPLICATE KEY UPDATE data = ?, timestamp = UTC_TIMESTAMP()", uuid, slot, compressed, compressed)
 	if err != nil {
 		return err
 	}
