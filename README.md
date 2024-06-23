@@ -11,10 +11,15 @@ There is a sample docker-compose file for setting up a docker container to setup
 - npm: [how to install](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm)
 
 ## Installation:
+```
+docker build . -t rogueserver
+docker compose -f docker.compose.Example.yml up -d
+```
+
 The docker compose file should automatically implement a container with mariadb with an empty database and the default user and password combo of pokerogue:pokerogue
 
-### src/utils.ts:224-225 (in pokerogue)
-Replace both URLs (one on each line) with the local API server address from rogueserver.go (0.0.0.0:8001) (or whatever port you picked)
+### .env and .env.development (in pokerogue)
+Replace the URL on VITE_SERVER_URL in both files to match your local ip and port of rogueserver if nessessary
 
 # If you are on Windows
 
